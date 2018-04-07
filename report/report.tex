@@ -1,0 +1,94 @@
+% Report of results for sticker pricing
+\documentclass{article}
+\usepackage{mathtools}  
+\title{Sticker Pricing Model \\ \large StickWidIt}
+\author{Jai Prasadh}
+
+\begin{document}
+
+\maketitle
+
+\section{Pricing Functions}
+
+\subsection{Individual Stickers}
+\paragraph{Function}
+Based on the estimates of various price points, I concluded that the pricing of individual stickers can be represented by
+\begin{equation}\label{eq:1}
+f(x) = H+B(1+x)^{-(r+\gamma x)}
+\end{equation} 
+where $x$ is the total ``area'' of an order and $f(x)$ gives the ``price-per-area'' of that order. The parameters are $B$, $H$, $r$, and $\gamma$. The effect of increasing $B$ is to make orders more expensive at all order areas, while the effect of increasing $r$ is to make the function more convex, i.e. to make the per-area-price drop more rapidly as order area rises. To make convexity increase (linearly) as area grows, you can set a value of $\gamma$. Finally, $H$ enforces the end behavior, or asymptotic behavior, as area grows large.
+
+You can think of $r$ and $\gamma$ together ($r+\gamma x$) as determining how quickly the price-per-area drops toward the value set for $H$ (the price-per-area for ``large'' orders) as area increases. In this context, the significance of $\gamma$ is that it allows this ``rate of convergence,'' roughly speaking, to vary with order area. By setting a positive $\gamma$, the price-per-area doesn't fall as rapidly when orders are small as when orders are large, which is the desired behavior. Also note that the magnitude of $\gamma$ is very small since the difference between a large order and a small order is very big, and we only want this effect to come into play on that scale.
+
+\paragraph{Parameters}
+From the data on pricing you provided, I estimated these parameters to be 
+\[ B=18, \ H=2.75, \ r=0.45, \ \gamma=0.0005 \]
+but of course, you can adjust these to best fit your pricing if it changes.
+
+
+\subsection{Sticker Sheets}
+\paragraph{Function}
+The exact price function described above (equation \ref{eq:1}) also works well for the sticker sheet pricing, although with different parameter values.
+
+\paragraph{Parameters}
+To reflect the slightly higher pricing data for sticker sheets when compared to individual stickers, I estimated the value of $B$ slightly higher. I also set the asymptotic limit to \$2.50/sq-ft, and accordingly set the $\gamma$ and $r$ parameters. These estimates are as follows.
+\[ B=22, \ H=2.50, \ r=0.4, \ \gamma=0.0004 \]
+
+
+\section{Handling Orders}
+
+\subsection{Order Structure}
+An order is structured as a list of sub-lists, each with 2 elements. The first element in each sub-list is a product ID, $\alpha_i$ if it is an individual sticker or $\beta_i$ if it is a sticker sheet, and the second element is a quantity, $q_i$. For example, $X^0$ and $X^1$ are sample orders.
+$$ 
+X^0 = [[\alpha_1, q_{\alpha_1}^0], [\alpha_2, q_{\alpha_2}^0], [\beta_1, q_{\beta_1}^0]]
+$$
+$$ X^1 = [[202, 2], [103, 1], [204, 6]] $$
+
+The ``size'' (area in sq-ft.) of each product is stored in a dictionary where each key is the unique product ID. $S^0$ and $S^1$ are examples of this.
+
+$$ 
+S^0 = \{\alpha_1: A_{\alpha_1}, \alpha_2: A_{\alpha_2}, \alpha_3: A_{\alpha_3}, \beta_1: A_{\beta_1}, \beta_2: A_{\beta_2}, \beta_3: A_{\beta_3} \}
+$$
+$$
+S^1 = \{101: 0.5, 102: 0.75, 103: 1.0, 201: 1.0, 202: 2.3, 203: 0.9\} 
+$$
+
+\subsection{Pricing the Orders}
+The first step in pricing the orders is to total the size (area) of each order. We will need a separate total area for the single stickers and sticker sheets in the order, since we price those differently. The area is just the sum of the product of quantity $q_i$ and individual size $A_i$ for each item $\alpha_i$ or $\beta_i$ in the order $X$.
+ 
+\begin{equation}\label{eq:2}
+A_\alpha^X = \sum_{\alpha_i} q_{\alpha_i} A_{\alpha_i}, \ \forall \alpha_i \in X
+\end{equation}
+
+\begin{equation}\label{eq:3}
+A_\beta^X = \sum_{\beta_i} q_{\beta_i} A_{\beta_i}, \ \forall \beta_i \in X
+\end{equation}
+
+Now we turn to the pricing functions we determined earlier (equation \ref{eq:1}). Let $f_\alpha(A)$ have the parameters set for the individual stickers pricing and $f_\beta(A)$ be set for sticker sheets. The subtotals for each type of sticker can be calculated as
+\begin{equation}\label{eq:4}
+T_j^X = A_j^X \cdot f_j(A_j^X),\ j \in \{\alpha, \beta \}
+\end{equation}
+
+Finally, before calculating our grand total, we must enforce that the minimum order value is \$15 so that even if an order is very small, it won't violate the minimum order policy. Therefore, our grand total $T$ for order $X$ is 
+\begin{equation}\label{eq:5}
+T(X) =
+  \begin{cases}
+   T_\alpha^X + T_\beta^X & \text{if} \ T_\alpha^X + T_\beta^X > 15 \\
+        15 & \text{otherwise}
+  \end{cases}
+\end{equation}
+
+\paragraph{Python Script}
+Calculating a total for each order in this manner would be unreasonably tedious by hand but is trivial for a computer to handle. I've written a short Python script which will take an order of the structure mentioned above and return the grand total for that order.
+
+\section{Model Flexibility}
+\subsection{Choice of Unique Product Identifier}
+The way in which you decide to uniquely identify each product depends on the number of products you sell, the number of types you offer, ease of use, and personal preference. For the case that you have two types of products (stickers and sticker sheets) and perhaps 50 different products of each type, you could use a 3-digit product ID scheme where the first digit can be either 1 or 2 depending on if it is a sticker or a sticker sheet and the last two digits represent which particular product it is. 
+
+For example, a product with ID \# 210 would be the 10th sticker sheet you offer and \# 139 would be the 39th individual sticker you offer. If you have way more products of each type, say 500, you could go to a 4- or 5-digit ID scheme where the first digit still represents the type and the last 3 or 4 digits represent the particular product.  If you so desired, an alphanumeric ID could also work (e.g. i32, s45) but in my opinion this adds complexity for little benefit.
+
+\subsection{Changes in Pricing}
+As I mentioned before, if you want to tweak the pricing, you can simply adjust the parameters $B$, $H$, $r$, and $\gamma$ of equation \ref{eq:1}. If you had a very large change in pricing and wanted a whole new function, you could estimate some price points to target and fit a new function to those points. I can show you how I did this and you can also follow along with the Mathematica guide I included, although I don't anticipate that this will be necessary. Also, if you wanted to change your minimum order policy, this is also simple to change in the Python script. 
+
+
+\end{document}
